@@ -14,7 +14,6 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <Wire.h>
-#include <Time.h>
 #include <RTClib.h>
 
 #include "eeprom.h"
@@ -22,6 +21,7 @@
 #include "rfid.h"
 #include "authenticate_log.h"
 #include "timers.h"
+#include "rtc.h"
 
 #define DEBUG 0
 
@@ -41,8 +41,6 @@ bool checkWiFiActivity(void);
 void handleWiFi(void);
 void handleRFID(void);
 
-static bool isWiFiConnected = false;
-
 static uint8_t temporary_image[EEPROM_SIZE];
 
 RTC_PCF8523 rtc;
@@ -61,17 +59,10 @@ void setup(void)
 
     EEPROM_Init();
 
-    if (!rtc.begin(&Wire))
+    if (!RTC_Init())
     {
         DEBUG_PRINT("RTC init failed.\r\n");
     }
-
-    if (!rtc.initialized() || rtc.lostPower())
-    {
-        rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    }
-
-    rtc.start();
 
     if (!RFID_Init())
     {
@@ -189,7 +180,7 @@ void handleWiFi(void)
         WiFi.forceSleepBegin();
         return;
     }
-    rtc.adjust(DateTime(time));
+    RTC_SetTime(time);
 
     WiFi.forceSleepBegin();
 }
@@ -199,16 +190,17 @@ bool checkWiFiActivity(void)
     static bool wifi_activated = false;
 
     // Get current time
-    DateTime rtc_time = rtc.now();
+    unixtime_t time = RTC_GetTime();
+    unixtime_t hour_of_day = UNIXTIME_TO_HOUR_OF_DAY(time);
 
-    if ((!wifi_activated) && (rtc_time.hour() == WIFI_ACTIVE_HOUR))
+    if ((!wifi_activated) && (hour_of_day == WIFI_ACTIVE_HOUR))
     {
         // WiFi was not activated in this hour and it is time for communication with the central
         // module
         wifi_activated = true;
         return true;
     }
-    else if ((wifi_activated) && (rtc_time.hour() != WIFI_ACTIVE_HOUR))
+    else if ((wifi_activated) && (hour_of_day != WIFI_ACTIVE_HOUR))
     {
         // WiFi was activated in the last hour and it is no longer the time for WiFi activity
         wifi_activated = false;
