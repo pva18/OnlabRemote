@@ -2,8 +2,7 @@
 build/
 
 # Ignore all files in the .vscode directory
-.vscode/*
-!.vscode/arduino.json
+.vscode/
 
 # Prerequisites
 *.d
