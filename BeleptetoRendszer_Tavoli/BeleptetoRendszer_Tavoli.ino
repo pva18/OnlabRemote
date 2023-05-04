@@ -21,16 +21,17 @@
 #include "wifi.h"
 #include "rfid.h"
 #include "authenticate_log.h"
+#include "timers.h"
 
 #define DEBUG 0
 
 #ifdef DEBUG
 #define DEBUG_PRINT(str) Serial.print(str)
 #else
-#define DEBUG_PRINT(str) // Don't do anything in release builds
-#endif                   /* DEBUG */
+#define DEBUG_PRINT(str)
+#endif /* DEBUG */
 
-#define ACTIVE_TIME_MS 30000
+#define ACTIVE_TIME_MS 15000
 #define SLEEP_TIME_MS 1000
 #define WIFI_ACTIVE_HOUR 1
 
@@ -100,13 +101,17 @@ void setup(void)
 
 void loop(void)
 {
+    // Always handle the timers
+    TIMERS_HandleEvents();
+
     if (checkActivity())
     {
+        // If there is user activity, handle the RFID authentication
         handleRFID();
     }
     else
     {
-        // Only communicate with the central module if there is no user activity)
+        // Only communicate with the central module if there is no user activity
         handleWiFi();
     }
 
@@ -234,17 +239,29 @@ void handleRFID(void)
         digitalWrite(RELAY_SWITCH_PIN, RELAY_ON);
         digitalWrite(LED_GREEN_PIN, LED_ON);
 
-        delay(5000);
-
-        digitalWrite(LED_GREEN_PIN, LED_OFF);
-        digitalWrite(RELAY_SWITCH_PIN, RELAY_OFF);
+        timer_event_t switch_off;
+        switch_off.millis_start = millis();
+        switch_off.millis_period = 5000;
+        switch_off.handler = [](uint32_t __unused)
+        {
+            digitalWrite(LED_GREEN_PIN, LED_OFF);
+            digitalWrite(RELAY_SWITCH_PIN, RELAY_OFF);
+        };
+        TIMERS_AddEvent(&switch_off);
 
         AUTHENTICATE_LOG_WriteLog(uid, time);
     }
     else
     {
         digitalWrite(LED_RED_PIN, LED_ON);
-        delay(3000);
-        digitalWrite(LED_RED_PIN, LED_OFF);
+
+        timer_event_t red_led_off;
+        red_led_off.millis_start = millis();
+        red_led_off.millis_period = 3000;
+        red_led_off.handler = [](uint32_t __unused)
+        {
+            digitalWrite(LED_RED_PIN, LED_OFF);
+        };
+        TIMERS_AddEvent(&red_led_off);
     }
 }
