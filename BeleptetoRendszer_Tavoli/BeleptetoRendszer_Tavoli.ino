@@ -102,7 +102,7 @@ void setup(void)
 void loop(void)
 {
     // Always handle the timers
-    TIMERS_HandleEvents();
+    TIMERS_HandleEvents(millis());
 
     if (checkActivity())
     {
@@ -157,41 +157,36 @@ void handleWiFi(void)
     // Wake up WiFi modem and communicate with the central module
     WiFi.forceSleepWake();
 
-    if (!isWiFiConnected)
+    if (!WIFI_Connect())
     {
-        // If the WiFi is not connected, try to connect
-        isWiFiConnected = WIFI_Connect();
-        if (!isWiFiConnected)
-        {
-            DEBUG_PRINT("WiFi connection failed\r\n");
-            return;
-        }
-    }
-
-    WiFiClient client;
-    bool success = false;
-
-    success = WIFI_ClientSendMemory(client, EEPROM_GetMemoryImage(), EEPROM_GetSize());
-    if (!success)
-    {
-        DEBUG_PRINT("Sending memory failed\r\n");
+        DEBUG_PRINT("WiFi connection failed\r\n");
+        WiFi.forceSleepBegin();
         return;
     }
 
-    success = WIFI_ClientRequestNewMemory(client, temporary_image, sizeof(temporary_image));
-    if (!success)
+    WiFiClient client;
+
+    if (!WIFI_ClientSendMemory(client, EEPROM_GetMemoryImage(), EEPROM_GetSize()))
+    {
+        DEBUG_PRINT("Sending memory failed\r\n");
+        WiFi.forceSleepBegin();
+        return;
+    }
+
+    if (!WIFI_ClientRequestNewMemory(client, temporary_image, sizeof(temporary_image)))
     {
         DEBUG_PRINT("Requesting new memory failed\r\n");
+        WiFi.forceSleepBegin();
         return;
     }
     EEPROM_Write(0, temporary_image, sizeof(temporary_image));
     EEPROM_MemoryImage_Commit();
 
     uint32_t time = 0;
-    success = WIFI_ClientRequestTime(client, &time);
-    if (!success)
+    if (!WIFI_ClientRequestTime(client, &time))
     {
         DEBUG_PRINT("Requesting time failed\r\n");
+        WiFi.forceSleepBegin();
         return;
     }
     rtc.adjust(DateTime(time));

@@ -16,13 +16,12 @@ bool TIMERS_AddEvent(const timer_event_t *event)
     return timer_events.enqueue(*event);
 }
 
-void TIMERS_HandleEvents(void)
+void TIMERS_HandleEvents(unsigned long millis_current)
 {
     timer_event_t event;
-    uint32_t millis_current = millis();
     while (timer_events.dequeue(&event))
     {
-        uint32_t millis_real_period = millis_current - event.millis_start;
+        unsigned long millis_real_period = millis_current - event.millis_start;
         if (millis_real_period >= event.millis_period)
         {
             event.handler(millis_real_period);

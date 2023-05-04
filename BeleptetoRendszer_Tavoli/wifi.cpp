@@ -23,6 +23,11 @@ bool WIFI_ClientWaitForResponse(WiFiClient &client, unsigned long timeout);
  */
 bool WIFI_Connect(void)
 {
+    if (WiFi.isConnected())
+    {
+        return true;
+    }
+
     // Connect to the WiFi network
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
