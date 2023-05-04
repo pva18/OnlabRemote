@@ -1,12 +1,13 @@
 /**
+ ***************************************************************************************************
  * @file BeleptetoRendszer_Tavoli.ino
- * @author your name (you@domain.com)
- * @brief
- * @version 0.1
- * @date 2023-04-24
- *
- * @copyright Copyright (c) 2023
- *
+ * @author Péter Varga
+ * @date 2023. 05. 04.
+ ***************************************************************************************************
+ * @brief Main file of the remote access control system.
+ * @note The code is written for the ESP8266 platform, and it is compiled with the ESP8266 Arduino
+ * Core library.
+ ***************************************************************************************************
  */
 
 #include "BeleptetoRendszer_Tavoli.h"
@@ -43,8 +44,9 @@ void handleRFID(void);
 
 static uint8_t temporary_image[EEPROM_SIZE];
 
-RTC_PCF8523 rtc;
-
+/**
+ * @brief Arduino setup function.
+ */
 void setup(void)
 {
 #ifdef DEBUG
@@ -84,12 +86,9 @@ void setup(void)
     digitalWrite(RFID_IRQ_PIN, LOW);
 }
 
-// Activity check
-// RFID authentication
-// WiFi connection
-// EEPROM write
-// Sleep
-
+/**
+ * @brief Arduino loop function.
+ */
 void loop(void)
 {
     // Always handle the timers
@@ -111,8 +110,8 @@ void loop(void)
 }
 
 /**
- * @brief Check if the module is active
- * @return True if the module is active, false otherwise
+ * @brief Check if the module is active.
+ * @return True if the module is active, false otherwise.
  */
 bool checkActivity(void)
 {
@@ -136,7 +135,7 @@ bool checkActivity(void)
 }
 
 /**
- * @brief Handle the WiFi connection and communication
+ * @brief Handle the WiFi connection and communication.
  */
 void handleWiFi(void)
 {
@@ -185,6 +184,10 @@ void handleWiFi(void)
     WiFi.forceSleepBegin();
 }
 
+/**
+ * @brief Check if it is time for WiFi activity.
+ * @return True if it is time for WiFi activity, false otherwise.
+ */
 bool checkWiFiActivity(void)
 {
     static bool wifi_activated = false;
@@ -209,23 +212,30 @@ bool checkWiFiActivity(void)
     return false;
 }
 
+/**
+ * @brief Handle the RFID authentication.
+ */
 void handleRFID(void)
 {
     if (!RFID_ReadTag())
     {
+        // No tag was read
         return;
     }
 
     DEBUG_PRINT(RFID_GetUidAsString());
+    DEBUG_PRINT("\r\n");
 
     const uint8_t *uid = RFID_GetUidAsByteArray();
-    uint32_t time = rtc.now().unixtime();
+    unixtime_t time = RTC_GetTime();
 
     if (AUTHENTICATE_LOG_Authenticate(uid, time))
     {
+        // If the user is authenticated, switch on the relay and the green LED
         digitalWrite(RELAY_SWITCH_PIN, RELAY_ON);
         digitalWrite(LED_GREEN_PIN, LED_ON);
 
+        // Switch off the relay and the green LED after 5 seconds
         timer_event_t switch_off;
         switch_off.millis_start = millis();
         switch_off.millis_period = 5000;
@@ -240,8 +250,10 @@ void handleRFID(void)
     }
     else
     {
+        // If the user is not authenticated, switch on the red LED
         digitalWrite(LED_RED_PIN, LED_ON);
 
+        // Switch off the red LED after 3 seconds
         timer_event_t red_led_off;
         red_led_off.millis_start = millis();
         red_led_off.millis_period = 3000;

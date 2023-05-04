@@ -1,13 +1,35 @@
+/**
+ ***************************************************************************************************
+ * @file rfid.cpp
+ * @author Péter Varga
+ * @date 2023. 05. 04.
+ ***************************************************************************************************
+ * @brief Implementation of rfid.h.
+ ***************************************************************************************************
+ */
+
 #include "rfid.h"
 
 #include <stdio.h>
 
 #include "BeleptetoRendszer_Tavoli.h"
 
+/**
+ * @brief The buffer for the UID of the tag.
+ */
 static char rfidBuffer[64];
 
+/**
+ * @brief Serial object for the RFID reader.
+ */
 SoftwareSerial rfidSerial;
+/**
+ * @brief Instance of the MFRC522 driver for the RFID reader.
+ */
 MFRC522DriverUART rfidDriver(rfidSerial, RFID_RX_PIN, RFID_TX_PIN);
+/**
+ * @brief Instance of the MFRC522 class for the RFID reader.
+ */
 MFRC522 mfrc522(rfidDriver);
 
 bool RFID_Init(void)
@@ -17,7 +39,6 @@ bool RFID_Init(void)
 
 bool RFID_ReadTag(void)
 {
-    // Reset the loop if no new card present on the sensor/reader. This saves the entire process when idle.
     if (!mfrc522.PICC_IsNewCardPresent())
     {
         return false;

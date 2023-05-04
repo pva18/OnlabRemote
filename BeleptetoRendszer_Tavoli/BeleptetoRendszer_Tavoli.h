@@ -1,17 +1,22 @@
 /**
+ ***************************************************************************************************
  * @file BeleptetoRendszer_Tavoli.h
- * @author your name (you@domain.com)
- * @brief 
- * @version 0.1
- * @date 2023-04-24
- * 
- * @copyright Copyright (c) 2023
- * 
+ * @author Péter Varga
+ * @date 2023. 05. 04.
+ ***************************************************************************************************
+ * @brief Header file of the remote access control system, containing the hardware configuration of
+ * the module.
+ ***************************************************************************************************
  */
 
 #ifndef BELEPTETORENDSZER_TAVOLI_H
 #define BELEPTETORENDSZER_TAVOLI_H
 
+/**
+ * @defgroup PINOUT Pinout
+ * @brief Pinout of the module.
+ * @{
+ */
 #define I2C_SDA_PIN 2
 #define I2C_SCL_PIN 14
 
@@ -30,5 +35,6 @@
 #define LED_GREEN_PIN 13
 #define LED_ON LOW
 #define LED_OFF HIGH
+/** @} */
 
 #endif /* BELEPTETORENDSZER_TAVOLI_H */

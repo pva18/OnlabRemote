@@ -1,25 +1,37 @@
 /**
+ ***************************************************************************************************
  * @file EEPROM_24LC64.cpp
- * @author your name (you@domain.com)
- * @brief
- * @version 0.1
- * @date 2023-04-17
- *
- * @copyright Copyright (c) 2023
- *
+ * @author Péter Varga
+ * @date 2023. 05. 04.
+ ***************************************************************************************************
+ * @brief Implementation of EEPROM_24LC64.h.
+ ***************************************************************************************************
  */
 
 #include "EEPROM_24LC64.h"
 
+/**
+ * @brief Construct a new EEPROM_24LC64::EEPROM_24LC64 object.
+ * @param i2c The I2C bus to use.
+ * @param device_address_lower_3_bits The lower 3 bits of the device address.
+ */
 EEPROM_24LC64::EEPROM_24LC64(TwoWire &i2c, uint8_t device_address_lower_3_bits)
     : _i2c(i2c), _device_address(EEPROM_24LC64_DEVICE_BASE_ADDRESS | device_address_lower_3_bits)
 {
 }
 
+/**
+ * @brief Destroy the EEPROM_24LC64::EEPROM_24LC64 object.
+ */
 EEPROM_24LC64::~EEPROM_24LC64()
 {
 }
 
+/**
+ * @brief Write a byte to the EEPROM.
+ * @param address The address to write to.
+ * @param data The data to write.
+ */
 void EEPROM_24LC64::writeByte(uint16_t address, uint8_t data)
 {
     // Transmit Control Byte
@@ -33,6 +45,14 @@ void EEPROM_24LC64::writeByte(uint16_t address, uint8_t data)
     _i2c.endTransmission();
 }
 
+/**
+ * @brief Write data to the EEPROM.
+ * @param address The address to write to.
+ * @param data The data to write.
+ * @param length The length of the data.
+ * 
+ * @note The data can only be written to a single page. If the data crosses a page border, the write will be ignored.
+ */
 void EEPROM_24LC64::writePage(uint16_t address, uint8_t *data, uint8_t length)
 {
     // Negative conditions for a valid write
@@ -59,6 +79,11 @@ void EEPROM_24LC64::writePage(uint16_t address, uint8_t *data, uint8_t length)
     _i2c.endTransmission();
 }
 
+/**
+ * @brief Read a byte from the EEPROM.
+ * @param address The address to read from.
+ * @return The data read from the EEPROM.
+ */
 uint8_t EEPROM_24LC64::readByte(uint16_t address)
 {
     // Transmit Control Byte
@@ -80,6 +105,13 @@ uint8_t EEPROM_24LC64::readByte(uint16_t address)
     }
 }
 
+/**
+ * @brief Read multiple bytes from the EEPROM.
+ * @param address The address to read from.
+ * @param data The data to read.
+ * @param length The length of the data.
+ * @return The number of bytes read.
+ */
 uint16_t EEPROM_24LC64::readMultiBytes(uint16_t address, uint8_t *data, uint16_t length)
 {
     // Transmit Control Byte
@@ -102,6 +134,10 @@ uint16_t EEPROM_24LC64::readMultiBytes(uint16_t address, uint8_t *data, uint16_t
     return index;
 }
 
+/**
+ * @brief Read the next byte from the EEPROM.
+ * @return The data read from the EEPROM.
+ */
 uint8_t EEPROM_24LC64::readNextByte()
 {
     // Transmit Control Byte and receive data
@@ -116,6 +152,12 @@ uint8_t EEPROM_24LC64::readNextByte()
     }
 }
 
+/**
+ * @brief Read the next multiple bytes from the EEPROM.
+ * @param data The data to read.
+ * @param length The length of the data.
+ * @return The number of bytes read.
+ */
 uint16_t EEPROM_24LC64::readNextMultiBytes(uint8_t *data, uint16_t length)
 {
     // Transmit Control Byte and receive data

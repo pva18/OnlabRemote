@@ -1,17 +1,32 @@
+/**
+ ***************************************************************************************************
+ * @file authenticate_log.cpp
+ * @author Péter Varga
+ * @date 2023. 05. 04.
+ ***************************************************************************************************
+ * @brief Implementation of authenticate_log.h.
+ ***************************************************************************************************
+ */
+
 #include "authenticate_log.h"
 
 #include <cstring>
 
 #include "eeprom.h"
 
+/**
+ * @defgroup authlog_sizes Authlog sizes
+ * @brief The sizes of the authentication and log structures.
+ * @{
+ */
 #define UID_SIZE 10
-
 #define AUTHENTICATE_SIZE (UID_SIZE + 4)
-
 #define LOG_SIZE (UID_SIZE + 6)
+/** @} */
 
 /**
  * @defgroup eeprom_header_addresses EEPROM header addresses
+ * @brief The addresses of the header fields in the EEPROM.
  * @{
  */
 #define AUTHENTICATE_HEADER_SIZE_ADDRESS 0
@@ -22,6 +37,9 @@
 #define LAST_TIME_UPDATE_ADDRESS 10
 /** @} */
 
+/**
+ * @brief The header structure in the EEPROM.
+ */
 typedef struct _eeprom_header_t
 {
     uint16_t headerSize;
@@ -32,6 +50,9 @@ typedef struct _eeprom_header_t
     uint32_t lastTimeUpdate;
 } eeprom_header_t;
 
+/**
+ * @brief The authenticate structure.
+ */
 typedef struct _authenticate_t
 {
     uint8_t uid[UID_SIZE];
@@ -41,6 +62,9 @@ typedef struct _authenticate_t
     uint8_t endMinute;
 } authenticate_t;
 
+/**
+ * @brief The log structure.
+ */
 typedef struct _log_t
 {
     uint16_t logNumber;
@@ -48,8 +72,14 @@ typedef struct _log_t
     uint32_t timestamp;
 } log_t;
 
+/**
+ * @brief The header structure in the EEPROM.
+ */
 eeprom_header_t eepromHeader;
 
+/**
+ * @brief Initializes the authenticate log module.
+ */
 void AUTHENTICATE_LOG_Init(void)
 {
     // Read header from EEPROM
@@ -73,6 +103,12 @@ void AUTHENTICATE_LOG_Init(void)
                 4);
 }
 
+/**
+ * @brief Authenticates the given uid.
+ * @param uid The uid to authenticate.
+ * @param timestamp The timestamp of the authentication.
+ * @return True if the authentication was successful, false otherwise.
+ */
 bool AUTHENTICATE_LOG_Authenticate(const uint8_t *uid, uint32_t timestamp)
 {
     // Iterate through the authenticate structures
@@ -112,6 +148,11 @@ bool AUTHENTICATE_LOG_Authenticate(const uint8_t *uid, uint32_t timestamp)
     return false;
 }
 
+/**
+ * @brief Writes a log to the EEPROM.
+ * @param uid The uid to write.
+ * @param timestamp The timestamp to write.
+ */
 void AUTHENTICATE_LOG_WriteLog(const uint8_t *uid, uint32_t timestamp)
 {
     uint8_t log[LOG_SIZE];
@@ -136,6 +177,10 @@ void AUTHENTICATE_LOG_WriteLog(const uint8_t *uid, uint32_t timestamp)
     EEPROM_MemoryImage_Commit();
 }
 
+/**
+ * @brief Set the last time update.
+ * @param timestamp The timestamp to set.
+ */
 void AUTHENTICATE_LOG_SetLastTimeUpdate(uint32_t timestamp)
 {
     // Update the last time update
