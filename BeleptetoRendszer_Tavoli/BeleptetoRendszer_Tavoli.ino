@@ -23,6 +23,7 @@
 #include "authenticate_log.h"
 #include "timers.h"
 #include "rtc.h"
+#include "WifiModemWakeupSleep.hpp"
 
 #define DEBUG 0
 
@@ -35,6 +36,8 @@
 #define ACTIVE_TIME_MS 15000
 #define SLEEP_TIME_MS 1000
 #define WIFI_ACTIVE_HOUR 1
+
+void ioPinsInit(void);
 
 bool checkActivity(void);
 bool checkWiFiActivity(void);
@@ -57,6 +60,8 @@ void setup(void)
     Serial.println();
 #endif /* DEBUG */
 
+    ioPinsInit();
+
     Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 
     EEPROM_Init();
@@ -70,20 +75,6 @@ void setup(void)
     {
         DEBUG_PRINT("RFID init failed.\r\n");
     }
-
-    pinMode(WAKEUP_PIN, INPUT);
-
-    pinMode(RELAY_SWITCH_PIN, OUTPUT);
-    digitalWrite(RELAY_SWITCH_PIN, RELAY_OFF);
-
-    pinMode(LED_RED_PIN, OUTPUT);
-    digitalWrite(LED_RED_PIN, LED_OFF);
-
-    pinMode(LED_GREEN_PIN, OUTPUT);
-    digitalWrite(LED_GREEN_PIN, LED_OFF);
-
-    pinMode(RFID_IRQ_PIN, OUTPUT);
-    digitalWrite(RFID_IRQ_PIN, LOW);
 }
 
 /**
@@ -139,6 +130,9 @@ bool checkActivity(void)
  */
 void handleWiFi(void)
 {
+    // Create a WifiModemWakeupSleep object to handle modem wakeup and sleep
+    WifiModemWakeupSleep wifiModemController(WiFi);
+
     if (!checkWiFiActivity())
     {
         return;
@@ -150,7 +144,6 @@ void handleWiFi(void)
     if (!WIFI_Connect())
     {
         DEBUG_PRINT("WiFi connection failed\r\n");
-        WiFi.forceSleepBegin();
         return;
     }
 
@@ -159,14 +152,12 @@ void handleWiFi(void)
     if (!WIFI_ClientSendMemory(client, EEPROM_GetMemoryImage(), EEPROM_GetSize()))
     {
         DEBUG_PRINT("Sending memory failed\r\n");
-        WiFi.forceSleepBegin();
         return;
     }
 
     if (!WIFI_ClientRequestNewMemory(client, temporary_image, sizeof(temporary_image)))
     {
         DEBUG_PRINT("Requesting new memory failed\r\n");
-        WiFi.forceSleepBegin();
         return;
     }
     EEPROM_Write(0, temporary_image, sizeof(temporary_image));
@@ -176,12 +167,9 @@ void handleWiFi(void)
     if (!WIFI_ClientRequestTime(client, &time))
     {
         DEBUG_PRINT("Requesting time failed\r\n");
-        WiFi.forceSleepBegin();
         return;
     }
     RTC_SetTime(time);
-
-    WiFi.forceSleepBegin();
 }
 
 /**
@@ -263,4 +251,21 @@ void handleRFID(void)
         };
         TIMERS_AddEvent(&red_led_off);
     }
+}
+
+void ioPinsInit(void)
+{
+    pinMode(WAKEUP_PIN, INPUT);
+
+    pinMode(RELAY_SWITCH_PIN, OUTPUT);
+    digitalWrite(RELAY_SWITCH_PIN, RELAY_OFF);
+
+    pinMode(LED_RED_PIN, OUTPUT);
+    digitalWrite(LED_RED_PIN, LED_OFF);
+
+    pinMode(LED_GREEN_PIN, OUTPUT);
+    digitalWrite(LED_GREEN_PIN, LED_OFF);
+
+    pinMode(RFID_IRQ_PIN, OUTPUT);
+    digitalWrite(RFID_IRQ_PIN, LOW);
 }
