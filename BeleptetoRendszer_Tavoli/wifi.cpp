@@ -119,7 +119,7 @@ bool WIFI_ClientRequestTime(WiFiClient &client, uint32_t *time)
     }
 
     // Send the request symbol and the size
-    client.print("T 4\n");
+    client.print("T 0\n");
 
     if (!WIFI_ClientWaitForResponse(client, CLIENT_TIMEOUT_MS))
     {
@@ -212,24 +212,6 @@ bool WIFI_ClientSendMemory(WiFiClient &client, const uint8_t *buffer, uint16_t s
     client.print("M ");
     client.print(size);
     client.print('\n');
-
-    if (!WIFI_ClientWaitForResponse(client, CLIENT_TIMEOUT_MS))
-    {
-        client.stop();
-        return false;
-    }
-
-    String response = client.readStringUntil('\n');
-    while (client.available())
-    {
-        client.read();
-    }
-
-    if (response != "O")
-    {
-        client.stop();
-        return false;
-    }
 
     client.write(buffer, size);
 

@@ -4,12 +4,15 @@
  * @author Péter Varga
  * @date 2023. 05. 04.
  ***************************************************************************************************
- * @brief This class that handles the WiFi modem wakeup and sleep using the RAII technique.
+ * @brief This class handles the WiFi modem wakeup and sleep using the RAII technique.
  ***************************************************************************************************
  */
 
 #include "WiFi.h"
 
+/**
+ * @brief This class handles the WiFi modem wakeup and sleep using the RAII technique.
+ */
 class WifiModemWakeupSleep
 {
 private:

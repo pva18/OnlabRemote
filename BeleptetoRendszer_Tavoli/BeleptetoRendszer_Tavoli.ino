@@ -55,7 +55,7 @@ void setup(void)
 #ifdef DEBUG
     Serial.begin(115200);
     delay(10);
-    DEBUG_PRINT("\r\n");
+    Serial.println();
     Serial.println("Belepteto rendszer tavoli");
     Serial.println();
 #endif /* DEBUG */
@@ -87,6 +87,10 @@ void loop(void)
 
     if (checkActivity())
     {
+        DEBUG_PRINT("Active\r\n");
+        static uint8_t relay_state = RELAY_OFF;
+        digitalWrite(RELAY_SWITCH_PIN, relay_state);
+        relay_state = (relay_state == RELAY_OFF) ? RELAY_ON : RELAY_OFF;
         // If there is user activity, handle the RFID authentication
         handleRFID();
     }

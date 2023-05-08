@@ -38,7 +38,7 @@ int TIMERS_GetMaxEventNumber(void)
  */
 bool TIMERS_AddEvent(const timer_event_t *event)
 {
-    return timer_events.enqueue(*event);
+    return timer_events.enqueue(event);
 }
 
 /**
@@ -48,16 +48,15 @@ bool TIMERS_AddEvent(const timer_event_t *event)
 void TIMERS_HandleEvents(unsigned long millis_current)
 {
     timer_event_t event;
-    while (timer_events.dequeue(&event))
+    for(int i = 0; i < timer_events.size(); i++)
     {
-        unsigned long millis_real_period = millis_current - event.millis_start;
-        if (millis_real_period >= event.millis_period)
+        const timer_event_t *event = timer_events[i];
+        unsigned long millis_real_period = millis_current - event->millis_start;
+        if (millis_real_period >= event->millis_period)
         {
-            event.handler(millis_real_period);
-        }
-        else
-        {
-            timer_events.enqueue(event);
+            event->handler(millis_real_period);
+            timer_events.remove(i);
+            break;
         }
     }
 }

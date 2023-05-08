@@ -30,6 +30,7 @@ void MFRC522DriverUART::PCD_WriteRegister(const PCD_Register reg, const byte val
 {
     _uartClass.write((byte)reg);
     _uartClass.write(value);
+    _uartClass.read();
 } // End PCD_WriteRegister()
 
 /**
@@ -44,6 +45,7 @@ void MFRC522DriverUART::PCD_WriteRegister(const PCD_Register reg, const byte cou
     {
         _uartClass.write((byte)reg);
         _uartClass.write(values[i]);
+        _uartClass.read();
     }
 } // End PCD_WriteRegister()
 
