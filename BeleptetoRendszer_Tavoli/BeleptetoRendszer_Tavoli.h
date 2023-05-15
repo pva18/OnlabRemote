@@ -27,12 +27,12 @@
 #define RELAY_OFF LOW
 #define RELAY_ON HIGH
 
-#define RFID_RX_PIN 5
-#define RFID_TX_PIN 4
+#define RFID_RX_PIN 4
+#define RFID_TX_PIN 5
 #define RFID_IRQ_PIN 0
 
-#define LED_RED_PIN 12
-#define LED_GREEN_PIN 13
+#define LED_RED_PIN 13
+#define LED_GREEN_PIN 12
 #define LED_ON LOW
 #define LED_OFF HIGH
 /** @} */

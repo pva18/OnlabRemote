@@ -18,7 +18,7 @@
  * @{
  */
 #define WIFI_CONNECT_TIMEOUT_MS 10000
-#define CLIENT_TIMEOUT_MS 5000
+#define CLIENT_TIMEOUT_MS 30000
 /** @} */
 
 /**
@@ -54,7 +54,7 @@ bool WIFI_ClientWaitForResponse(WiFiClient &client, unsigned long timeout);
 /**
  * @brief Connect to the WiFi network.
  * @return True if the connection was successful, false otherwise.
- * 
+ *
  * @details The function checks if the ESP8266 is already connected to the WiFi network. If not, it
  * tries to connect to the network. Connection may take a few seconds.
  * @note The function uses delay() to wait for the connection to be established.
@@ -171,19 +171,12 @@ bool WIFI_ClientRequestNewMemory(WiFiClient &client, uint8_t *buffer, uint16_t s
         return false;
     }
 
-    int i = 0;
-    while (client.available())
+    size_t i = 0;
+    while (size > i)
     {
-        uint8_t n_byte = (uint8_t)client.read();
-        buffer[i] = n_byte;
-        i++;
-        if (i >= size)
-        {
-            i = 0;
-            break;
-        }
+        size_t readSize = client.readBytes(&(buffer[i]), size > 8 ? 8 : size);
+        i += readSize;
     }
-
     if (i != size)
     {
         client.stop();
@@ -213,7 +206,12 @@ bool WIFI_ClientSendMemory(WiFiClient &client, const uint8_t *buffer, uint16_t s
     client.print(size);
     client.print('\n');
 
-    client.write(buffer, size);
+    size_t s = client.write(buffer, size);
+    if (s != size)
+    {
+        client.stop();
+        return false;
+    }
 
     client.stop();
     return true;

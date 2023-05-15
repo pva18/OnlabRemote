@@ -22,7 +22,7 @@
 #define UID_SIZE 10
 #define NAME_SIZE 16
 #define AUTHENTICATE_SIZE (UID_SIZE + NAME_SIZE + 4)
-#define LOG_SIZE (UID_SIZE + 4)
+#define LOG_SIZE (UID_SIZE + 4 + 1)
 /** @} */
 
 /**
@@ -71,12 +71,14 @@ typedef struct _log_t
 {
     uint8_t uid[UID_SIZE];
     uint32_t timestamp;
+    uint8_t auth;
 } log_t;
 
 /**
  * @brief The header structure in the EEPROM.
  */
 eeprom_header_t eepromHeader;
+
 
 /**
  * @brief Initializes the authenticate log module.
@@ -158,8 +160,9 @@ bool AUTHENTICATE_LOG_Authenticate(const uint8_t *uid, uint32_t timestamp)
  * @brief Writes a log to the EEPROM.
  * @param uid The uid to write.
  * @param timestamp The timestamp to write.
+ * @param auth Authentication state: 0 = denied, 1 = granted.
  */
-void AUTHENTICATE_LOG_WriteLog(const uint8_t *uid, uint32_t timestamp)
+void AUTHENTICATE_LOG_WriteLog(const uint8_t *uid, uint32_t timestamp, uint8_t auth)
 {
     uint8_t log[LOG_SIZE];
 
@@ -172,15 +175,32 @@ void AUTHENTICATE_LOG_WriteLog(const uint8_t *uid, uint32_t timestamp)
     buffer[2] = (uint8_t)((timestamp >> 8) & 0xFF);
     buffer[3] = (uint8_t)(timestamp & 0xFF);
 
-    // Build the log from the log number, the uid and the timestamp
+    // Build the log the uid, the timestamp and the authentication state
     memcpy(log, uid, UID_SIZE);
     memcpy(log + UID_SIZE, buffer, 4);
+    log[UID_SIZE + 4] = auth ? 1 : 0;
 
     // Write the log to the EEPROM
     EEPROM_Write(log_next_address, log, LOG_SIZE);
 
     // Update the log length
     eepromHeader.logLength += LOG_SIZE;
+    buffer[0] = (uint8_t)(eepromHeader.logLength >> 8);
+    buffer[1] = (uint8_t)(eepromHeader.logLength & 0xFF);
+    EEPROM_Write(LOG_LENGTH_ADDRESS, buffer, 2);
+
+    // Commit the changes
+    EEPROM_MemoryImage_Commit();
+}
+
+/**
+ * @brief Clear the logs.
+ */
+void AUTHENTICATE_LOG_ClearLogs(void)
+{
+    // Clear the logs
+    eepromHeader.logLength = 0;
+    uint8_t buffer[2];
     buffer[0] = (uint8_t)(eepromHeader.logLength >> 8);
     buffer[1] = (uint8_t)(eepromHeader.logLength & 0xFF);
     EEPROM_Write(LOG_LENGTH_ADDRESS, buffer, 2);

@@ -17,7 +17,7 @@
  * @brief The type of the timer event handler function.
  * @param millis_real_period The real period of the timer event in milliseconds.
  */
-typedef void timer_event_handler_t(uint32_t millis_real_period);
+typedef void timer_event_handler_t(unsigned long millis_real_period);
 
 /**
  * @brief The timer event structure.

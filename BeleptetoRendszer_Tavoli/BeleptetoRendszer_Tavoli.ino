@@ -37,15 +37,21 @@
 #define SLEEP_TIME_MS 1000
 #define WIFI_ACTIVE_HOUR 1
 
+unsigned long activityCounter = 0;
+
+static uint8_t temporary_image[EEPROM_SIZE / 2];
+
 void ioPinsInit(void);
+void ioPinOn(uint8_t pin, unsigned long millis_interval);
+
+void ioLedRedRegister(bool increment);
+void ioLedGreenRegister(bool increment);
 
 bool checkActivity(void);
 bool checkWiFiActivity(void);
 
 void handleWiFi(void);
 void handleRFID(void);
-
-static uint8_t temporary_image[EEPROM_SIZE];
 
 /**
  * @brief Arduino setup function.
@@ -70,11 +76,23 @@ void setup(void)
     {
         DEBUG_PRINT("RTC init failed.\r\n");
     }
+    else
+    {
+        DEBUG_PRINT("RTC time: ");
+        DEBUG_PRINT(RTC_GetTime());
+        DEBUG_PRINT("\r\n");
+    }
 
     if (!RFID_Init())
     {
         DEBUG_PRINT("RFID init failed.\r\n");
     }
+
+    AUTHENTICATE_LOG_Init();
+
+    ioLedRedRegister(true);
+    handleWiFi();
+    ioLedRedRegister(false);
 }
 
 /**
@@ -88,16 +106,18 @@ void loop(void)
     if (checkActivity())
     {
         DEBUG_PRINT("Active\r\n");
-        static uint8_t relay_state = RELAY_OFF;
-        digitalWrite(RELAY_SWITCH_PIN, relay_state);
-        relay_state = (relay_state == RELAY_OFF) ? RELAY_ON : RELAY_OFF;
         // If there is user activity, handle the RFID authentication
         handleRFID();
     }
     else
     {
         // Only communicate with the central module if there is no user activity
-        handleWiFi();
+        if (checkWiFiActivity())
+        {
+            ioLedRedRegister(true);
+            handleWiFi();
+            ioLedRedRegister(false);
+        }
     }
 
     // Go to sleep
@@ -124,6 +144,7 @@ bool checkActivity(void)
     {
         // If the timer is over, put the module to inactive state
         isActive = false;
+        activityCounter++;
     }
 
     return isActive;
@@ -137,14 +158,6 @@ void handleWiFi(void)
     // Create a WifiModemWakeupSleep object to handle modem wakeup and sleep
     WifiModemWakeupSleep wifiModemController(WiFi);
 
-    if (!checkWiFiActivity())
-    {
-        return;
-    }
-
-    // Wake up WiFi modem and communicate with the central module
-    WiFi.forceSleepWake();
-
     if (!WIFI_Connect())
     {
         DEBUG_PRINT("WiFi connection failed\r\n");
@@ -152,6 +165,7 @@ void handleWiFi(void)
     }
 
     WiFiClient client;
+    client.setTimeout(30000);
 
     if (!WIFI_ClientSendMemory(client, EEPROM_GetMemoryImage(), EEPROM_GetSize()))
     {
@@ -165,6 +179,7 @@ void handleWiFi(void)
         return;
     }
     EEPROM_Write(0, temporary_image, sizeof(temporary_image));
+    AUTHENTICATE_LOG_ClearLogs();
     EEPROM_MemoryImage_Commit();
 
     uint32_t time = 0;
@@ -209,6 +224,9 @@ bool checkWiFiActivity(void)
  */
 void handleRFID(void)
 {
+    static unsigned long activityCounter_last = 0;
+    static uint8_t last_uid[RFID_UID_SIZE] = {0};
+
     if (!RFID_ReadTag())
     {
         // No tag was read
@@ -219,41 +237,31 @@ void handleRFID(void)
     DEBUG_PRINT("\r\n");
 
     const uint8_t *uid = RFID_GetUidAsByteArray();
+
+    if ((activityCounter == activityCounter_last) && RFID_UidEquals(uid, last_uid))
+    {
+        // The same tag was read in the same activity period, ignore it
+        return;
+    }
+    RFID_UidCopy(last_uid, uid);
+    activityCounter_last = activityCounter;
+
     unixtime_t time = RTC_GetTime();
 
     if (AUTHENTICATE_LOG_Authenticate(uid, time))
     {
-        // If the user is authenticated, switch on the relay and the green LED
-        digitalWrite(RELAY_SWITCH_PIN, RELAY_ON);
-        digitalWrite(LED_GREEN_PIN, LED_ON);
+        // If the user is authenticated, switch on the green LED and close the relay for 10 seconds
+        ioPinOn(LED_GREEN_PIN, 10000);
+        ioPinOn(RELAY_SWITCH_PIN, 10000);
 
-        // Switch off the relay and the green LED after 5 seconds
-        timer_event_t switch_off;
-        switch_off.millis_start = millis();
-        switch_off.millis_period = 5000;
-        switch_off.handler = [](uint32_t __unused)
-        {
-            digitalWrite(LED_GREEN_PIN, LED_OFF);
-            digitalWrite(RELAY_SWITCH_PIN, RELAY_OFF);
-        };
-        TIMERS_AddEvent(&switch_off);
-
-        AUTHENTICATE_LOG_WriteLog(uid, time);
+        AUTHENTICATE_LOG_WriteLog(uid, time, 1);
     }
     else
     {
-        // If the user is not authenticated, switch on the red LED
-        digitalWrite(LED_RED_PIN, LED_ON);
+        // If the user is not authenticated, switch on the red LED for 3 seconds
+        ioPinOn(LED_RED_PIN, 3000);
 
-        // Switch off the red LED after 3 seconds
-        timer_event_t red_led_off;
-        red_led_off.millis_start = millis();
-        red_led_off.millis_period = 3000;
-        red_led_off.handler = [](uint32_t __unused)
-        {
-            digitalWrite(LED_RED_PIN, LED_OFF);
-        };
-        TIMERS_AddEvent(&red_led_off);
+        AUTHENTICATE_LOG_WriteLog(uid, time, 0);
     }
 }
 
@@ -272,4 +280,122 @@ void ioPinsInit(void)
 
     pinMode(RFID_IRQ_PIN, OUTPUT);
     digitalWrite(RFID_IRQ_PIN, LOW);
+}
+
+void ioLedRedRegister(bool increment)
+{
+    static uint32_t redLedCount = 0;
+
+    if (increment)
+    {
+        redLedCount++;
+    }
+    else
+    {
+        if (redLedCount > 0)
+        {
+            redLedCount--;
+        }
+    }
+
+    if (redLedCount > 0)
+    {
+        digitalWrite(LED_RED_PIN, LED_ON);
+    }
+    else
+    {
+        digitalWrite(LED_RED_PIN, LED_OFF);
+    }
+}
+
+void ioLedGreenRegister(bool increment)
+{
+    static uint32_t ledGreenCount = 0;
+
+    if (increment)
+    {
+        ledGreenCount++;
+    }
+    else
+    {
+        if (ledGreenCount > 0)
+        {
+            ledGreenCount--;
+        }
+    }
+
+    if (ledGreenCount > 0)
+    {
+        digitalWrite(LED_GREEN_PIN, LED_ON);
+    }
+    else
+    {
+        digitalWrite(LED_GREEN_PIN, LED_OFF);
+    }
+}
+
+void ioRelayRegister(bool increment)
+{
+    static uint32_t relayCount = 0;
+
+    if (increment)
+    {
+        relayCount++;
+    }
+    else
+    {
+        if (relayCount > 0)
+        {
+            relayCount--;
+        }
+    }
+
+    if (relayCount > 0)
+    {
+        digitalWrite(RELAY_SWITCH_PIN, RELAY_ON);
+    }
+    else
+    {
+        digitalWrite(RELAY_SWITCH_PIN, RELAY_OFF);
+    }
+}
+
+void ioPinOn(uint8_t pin, unsigned long millis_interval)
+{
+    timer_event_t pin_off;
+
+    switch (pin)
+    {
+    case LED_RED_PIN:
+        ioLedRedRegister(true);
+        pin_off.millis_start = millis();
+        pin_off.millis_period = millis_interval;
+        pin_off.handler = [](unsigned long __unused)
+        {
+            ioLedRedRegister(false);
+        };
+        break;
+
+    case LED_GREEN_PIN:
+        ioLedGreenRegister(true);
+        pin_off.millis_start = millis();
+        pin_off.millis_period = millis_interval;
+        pin_off.handler = [](unsigned long __unused)
+        {
+            ioLedGreenRegister(false);
+        };
+        break;
+
+    case RELAY_SWITCH_PIN:
+        ioRelayRegister(true);
+        pin_off.millis_start = millis();
+        pin_off.millis_period = millis_interval;
+        pin_off.handler = [](unsigned long __unused)
+        {
+            ioRelayRegister(false);
+        };
+        break;
+    }
+
+    TIMERS_AddEvent(&pin_off);
 }
